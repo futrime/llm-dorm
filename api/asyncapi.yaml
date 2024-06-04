@@ -1,0 +1,77 @@
+asyncapi: 3.0.0
+info:
+  title: llm-dorm server
+  version: 1.0.0
+channels:
+  actuator:
+    messages:
+      ActuatorCommand:
+        $ref: '#/components/messages/ActuatorCommand'
+      ActuatorRegistration:
+        $ref: '#/components/messages/ActuatorRegistration'
+  sensor:
+    messages:
+      SensorRegistration:
+        $ref: '#/components/messages/SensorRegistration'
+      SensorReport:
+        $ref: '#/components/messages/SensorReport'
+operations:
+  receiveActuator:
+    action: receive
+    channel:
+      $ref: '#/channels/actuator'
+    messages:
+      - $ref: '#/channels/actuator/messages/ActuatorRegistration'
+  sendActuator:
+    action: send
+    channel:
+      $ref: '#/channels/actuator'
+    messages:
+      - $ref: '#/channels/actuator/messages/ActuatorCommand'
+  receiveSensor:
+    action: receive
+    channel:
+      $ref: '#/channels/sensor'
+    messages:
+      - $ref: '#/channels/sensor/messages/SensorRegistration'
+      - $ref: '#/channels/sensor/messages/SensorReport'
+components:
+  messages:
+    ActuatorCommand:
+      payload:
+        type: object
+        properties:
+          endpoint:
+            type: string
+          data:
+            type: object
+    ActuatorRegistration:
+      payload:
+        type: object
+        properties:
+          endpoint:
+            type: string
+          actuatorType:
+            type: string
+          actuatorDescription:
+            type: string
+          commandFormatDescription:
+            type: string
+    SensorRegistration:
+      payload:
+        type: object
+        properties:
+          endpoint:
+            type: string
+          sensorType:
+            type: string
+          sensorDescription:
+            type: string
+    SensorReport:
+      payload:
+        type: object
+        properties:
+          endpoint:
+            type: string
+          data:
+            type: object

@@ -6,9 +6,25 @@ import datetime
 from langchain_community.llms.tongyi import Tongyi
 from langchain_core.prompts import PromptTemplate
 
+from comm import ZmqComm
+
+BROKER_HOST = "10.8.0.5"
+BROKER_FRONTEND_PORT = 5555
+BROKER_BACKEND_PORT = 5556
+ENDPOINT = "server"
+
 
 async def main():
     """Main function."""
+
+    comm = ZmqComm(
+        broker_host=BROKER_HOST,
+        broker_backend_port=BROKER_BACKEND_PORT,
+        broker_frontend_port=BROKER_FRONTEND_PORT,
+        endpoint=ENDPOINT,
+    )
+
+    await comm.connect()
 
     llm = Tongyi(model_name="qwen-turbo")  # type: ignore
 

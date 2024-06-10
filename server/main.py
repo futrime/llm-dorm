@@ -1,5 +1,3 @@
-"""Main module."""
-
 import asyncio
 import datetime
 
@@ -15,8 +13,6 @@ ENDPOINT = "server"
 
 
 async def main():
-    """Main function."""
-
     comm = ZmqComm(
         broker_host=BROKER_HOST,
         broker_backend_port=BROKER_BACKEND_PORT,

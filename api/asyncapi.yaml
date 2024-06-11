@@ -11,8 +11,6 @@ channels:
         $ref: '#/components/messages/ActuatorRegistration'
   sensor:
     messages:
-      SensorRegistration:
-        $ref: '#/components/messages/SensorRegistration'
       SensorReport:
         $ref: '#/components/messages/SensorReport'
 operations:
@@ -33,7 +31,6 @@ operations:
     channel:
       $ref: '#/channels/sensor'
     messages:
-      - $ref: '#/channels/sensor/messages/SensorRegistration'
       - $ref: '#/channels/sensor/messages/SensorReport'
 components:
   messages:
@@ -57,7 +54,7 @@ components:
             type: string
           commandFormatDescription:
             type: string
-    SensorRegistration:
+    SensorReport:
       payload:
         type: object
         properties:
@@ -66,12 +63,6 @@ components:
           sensorType:
             type: string
           sensorDescription:
-            type: string
-    SensorReport:
-      payload:
-        type: object
-        properties:
-          endpoint:
             type: string
           data:
             type: object

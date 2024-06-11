@@ -50,6 +50,7 @@ class ZmqComm(Comm):
 
         self._loop_task_thread_should_run = True
         self._loop_task_thread = threading.Thread(target=self._loop_task_func)
+        self._loop_task_thread.start()
 
     def disconnect(self) -> None:
         assert self._loop_task_thread is not None

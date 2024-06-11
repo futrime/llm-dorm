@@ -3,7 +3,7 @@ from typing import Any, TypedDict
 
 class InfoDbEntry(TypedDict):
     endpoint: str
-    sensorDescription: str
+    description: str
     data: Any
 
 

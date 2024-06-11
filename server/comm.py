@@ -29,17 +29,17 @@ class ZmqComm(Comm):
         broker_host: str,
         broker_backend_port: int,
         broker_frontend_port: int,
-        endpoint: str,
+        channel: str,
     ):
         self._broker_host = broker_host
         self._broker_backend_port = broker_backend_port
         self._broker_frontend_port = broker_frontend_port
-        self._endpoint = endpoint
+        self._channel = channel
 
         self._publisher = zmq.Context().socket(zmq.PUB)
 
         self._subscriber = zmq.Context().socket(zmq.SUB)
-        self._subscriber.setsockopt_string(zmq.SUBSCRIBE, endpoint)
+        self._subscriber.setsockopt_string(zmq.SUBSCRIBE, channel)
 
         self._loop_task_thread: Optional[threading.Thread] = None
         self._loop_task_thread_should_run: bool = True
@@ -78,7 +78,7 @@ class ZmqComm(Comm):
         while self._loop_task_thread_should_run:
             message = self._subscriber.recv_string()
             channel, message = message.split(":", 1)
-            assert channel == self._endpoint
+            assert channel == self._channel
 
             for callback in self._receive_callback_list:
                 callback(message)

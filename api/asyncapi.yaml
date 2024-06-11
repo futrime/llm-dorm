@@ -40,6 +40,8 @@ components:
         properties:
           endpoint:
             type: string
+          messageId:
+            const: ActuatorCommand
           data:
             type: object
     ActuatorRegistration:
@@ -48,6 +50,8 @@ components:
         properties:
           endpoint:
             type: string
+          messageId:
+            const: ActuatorRegistration
           actuatorType:
             type: string
           actuatorDescription:
@@ -60,6 +64,8 @@ components:
         properties:
           endpoint:
             type: string
+          messageId:
+            const: SensorReport
           sensorType:
             type: string
           sensorDescription:

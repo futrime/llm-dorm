@@ -1,4 +1,4 @@
-from typing import Any, TypedDict
+from typing import Any, Dict, List, Optional, TypedDict
 
 
 class InfoDbEntry(TypedDict):
@@ -9,13 +9,13 @@ class InfoDbEntry(TypedDict):
 
 class InfoDb:
     def __init__(self):
-        self._info = []
+        self._info: Dict[str, InfoDbEntry] = {}
 
     def insert(self, entry: InfoDbEntry):
-        # Remove entry with the same endpoint
-        self._info = [e for e in self._info if e["endpoint"] != entry["endpoint"]]
+        self._info[entry["endpoint"]] = entry
 
-        self._info.append(entry)
+    def get(self) -> List[InfoDbEntry]:
+        return list(self._info.values())
 
-    def get(self):
-        return self._info
+    def get_endpoint(self, endpoint: str) -> Optional[InfoDbEntry]:
+        return self._info.get(endpoint)

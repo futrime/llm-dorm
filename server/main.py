@@ -102,7 +102,7 @@ def calendar_thread() -> None:
                 "endpoint": "calendar",
                 "description": "本系统用于获取当前时间和日期信息",
                 "data": {
-                    "date_time": now.strftime("%Y-%m-%d %I:%M%p %A"),
+                    "date_time": now.strftime("%Y-%m-%d %I%p %A"),
                     "holiday": holiday_name or "无节日",
                 },
             }
@@ -118,6 +118,8 @@ def face_thread() -> None:
     )
     runtime_options = alibabacloud_tea_util.models.RuntimeOptions()
 
+    last_img_sha256: str = ""
+
     while True:
         time.sleep(5)
 
@@ -130,6 +132,12 @@ def face_thread() -> None:
                 }
             )
             continue
+
+        img_hash = hash_with_sha256(open("img.jpg", "rb").read())
+        if img_hash == last_img_sha256:
+            print("No new image")
+            continue
+        last_img_sha256 = img_hash
 
         stream_a = open("img.jpg", "rb")
         stream_b = open("face_ref.jpg", "rb")
@@ -182,10 +190,19 @@ def llm_thread() -> None:
     llm = LLM()
     tts = TTS()
 
+    last_info_hash: int = 0
+
     while True:
         time.sleep(5)
 
-        llm_response = llm.generate(json.dumps(info_db.get()))
+        info = json.dumps(info_db.get(), sort_keys=True)
+        info_hash = hash(info)
+        if info_hash == last_info_hash:
+            print("No new info")
+            continue
+        last_info_hash = info_hash
+
+        llm_response = llm.generate(info)
 
         print(llm_response)
 
@@ -232,7 +249,7 @@ def qa_thread() -> None:
     tts = TTS()
 
     while True:
-        # time.sleep(5)
+        time.sleep(5)
 
         # Generate sound files for each question
         for question in QUESTION_LIST:
@@ -274,6 +291,8 @@ def qa_thread() -> None:
 def vlm_thread() -> None:
     vlm = VLM()
 
+    last_img_sha256: str = ""
+
     while True:
         time.sleep(5)
 
@@ -286,6 +305,12 @@ def vlm_thread() -> None:
                 }
             )
             continue
+
+        img_hash = hash_with_sha256(open("img.jpg", "rb").read())
+        if img_hash == last_img_sha256:
+            print("No new image")
+            continue
+        last_img_sha256 = img_hash
 
         vlm_response = vlm.generate("img.jpg")
 

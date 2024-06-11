@@ -1,10 +1,11 @@
 import base64
 import datetime
+import hashlib
 import json
 import os
-import random
 import threading
 import time
+import urllib.parse
 from typing import List
 
 import alibabacloud_facebody20191230.client
@@ -16,6 +17,7 @@ from comm import ZmqComm
 from info_db import InfoDb, InfoDbEntry
 from llm import LLM
 from schemas import ActuatorCommand, SensorReport
+from tts import TTS
 from vlm import VLM
 
 COMM_BROKER_HOST = "10.8.0.5"
@@ -30,18 +32,13 @@ QUESTION_LIST: List[str] = [
     "你今天来访的目的为何？",
 ]
 
-DEFAULT_INFO: List[InfoDbEntry] = [
-    {
-        "endpoint": "face",
-        "description": "本系统用于识别访客的人脸信息，以便进行访客管理",
-        "data": "缺失",
-    },
-    {
-        "endpoint": "fingerprint",
-        "description": "本系统用于验证访客的身份，以便进行访客管理",
-        "data": "缺失",
-    },
+QUESTION_ORDER_PREFIX_LIST: List[str] = [
+    "Hello，欢迎你的到来。在进入之前，还请麻烦您回答几个问题。请问，",
+    "好的，请问，",
+    "最后一个问题了，请问，",
 ]
+
+DEFAULT_INFO: List[InfoDbEntry] = []
 
 info_db = InfoDb()
 comm = ZmqComm(
@@ -57,16 +54,6 @@ def main() -> None:
 
     for entry in DEFAULT_INFO:
         info_db.insert(entry)
-
-    # questions = random.sample(QUESTION_LIST, 3)
-    # answers = [input(f"{question}\n") for question in questions]
-    # info_db.insert(
-    #     {
-    #         "endpoint": "questions",
-    #         "description": "用户回答了随机抽取的问题",
-    #         "data": dict(zip(questions, answers)),
-    #     }
-    # )
 
     thread_list: List[threading.Thread] = [
         threading.Thread(target=calendar_thread),
@@ -88,7 +75,7 @@ def sensor_comm_callback(msg_str: str) -> None:
 
     match msg["sensorType"]:
         case "camera":
-            base64_img = bytes(msg["data"])
+            base64_img = str(msg["data"]).encode()
             with open("img.jpg", "wb") as f:
                 f.write(base64.decodebytes(base64_img))
 
@@ -135,6 +122,13 @@ def face_thread() -> None:
         time.sleep(5)
 
         if not os.path.exists("img.jpg"):
+            info_db.insert(
+                {
+                    "endpoint": "face",
+                    "description": "本系统用于识别访客的人脸信息，以便进行访客管理",
+                    "data": "缺失",
+                }
+            )
             continue
 
         stream_a = open("img.jpg", "rb")
@@ -153,6 +147,8 @@ def face_thread() -> None:
             )
             confidence = response.body.data.confidence
             assert isinstance(confidence, float)
+
+            print(response.body.data)
 
             if confidence > 61:
                 info_db.insert(
@@ -184,33 +180,95 @@ def face_thread() -> None:
 
 def llm_thread() -> None:
     llm = LLM()
+    tts = TTS()
 
     while True:
         time.sleep(5)
 
         llm_response = llm.generate(json.dumps(info_db.get()))
 
+        print(llm_response)
+
         if llm_response["decision"] == "准入":
             gate_command: ActuatorCommand = {
                 "endpoint": "gate",
                 "messageId": "ActuatorCommand",
-                "data": "unlock",
+                "data": {
+                    "command": "unlock",
+                },
             }
 
         else:
             gate_command = {
                 "endpoint": "gate",
                 "messageId": "ActuatorCommand",
-                "data": "lock",
+                "data": {
+                    "command": "lock",
+                },
             }
 
         comm.send("actuator", json.dumps(gate_command))
 
-        # TODO: sound
+        if os.path.exists("llm.mp3"):
+            os.remove("llm.mp3")
+
+        tts.generate(llm_response["explanation"], "llm.mp3")
+
+        with open("llm.mp3", "rb") as f:
+            sound_data = f.read()
+
+        sound_command: ActuatorCommand = {
+            "endpoint": "explanation",
+            "messageId": "ActuatorCommand",
+            "data": {
+                "sound": base64.encodebytes(sound_data).decode(),
+            },
+        }
+
+        comm.send("actuator", json.dumps(sound_command))
 
 
 def qa_thread() -> None:
-    pass
+    tts = TTS()
+
+    while True:
+        # time.sleep(5)
+
+        # Generate sound files for each question
+        for question in QUESTION_LIST:
+            for order in range(3):
+                order_prefix = QUESTION_ORDER_PREFIX_LIST[order]
+                text = order_prefix + question
+                file_name = (
+                    hash_with_sha256(urllib.parse.quote(text).encode())[:32] + ".mp3"
+                )
+                if os.path.exists(file_name):
+                    continue
+
+                tts.generate(text, file_name)
+
+        # Send questions to user
+        for question in QUESTION_LIST:
+            for order in range(3):
+                order_prefix = QUESTION_ORDER_PREFIX_LIST[order]
+                text = order_prefix + question
+                file_name = (
+                    hash_with_sha256(urllib.parse.quote(text).encode())[:32] + ".mp3"
+                )
+                with open(file_name, "rb") as f:
+                    sound_data = f.read()
+
+                sound_command: ActuatorCommand = {
+                    "endpoint": "question",
+                    "messageId": "ActuatorCommand",
+                    "data": {
+                        "order": order,
+                        "question": question,
+                        "sound": base64.encodebytes(sound_data).decode(),
+                    },
+                }
+
+                comm.send("actuator", json.dumps(sound_command))
 
 
 def vlm_thread() -> None:
@@ -220,9 +278,19 @@ def vlm_thread() -> None:
         time.sleep(5)
 
         if not os.path.exists("img.jpg"):
+            info_db.insert(
+                {
+                    "endpoint": "vlm",
+                    "description": "本系统用于分析图片中的场景，以便进行安防推理",
+                    "data": "缺失",
+                }
+            )
             continue
 
         vlm_response = vlm.generate("img.jpg")
+
+        print(vlm_response)
+
         info_db.insert(
             {
                 "endpoint": "vlm",
@@ -230,6 +298,14 @@ def vlm_thread() -> None:
                 "data": vlm_response,
             }
         )
+
+
+def hash_with_sha256(data: bytes):
+    sha256 = hashlib.sha256()
+
+    sha256.update(data)
+
+    return sha256.hexdigest()
 
 
 if __name__ == "__main__":

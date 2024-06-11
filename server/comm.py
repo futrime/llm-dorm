@@ -1,6 +1,6 @@
 import threading
 from abc import ABC, abstractmethod
-from typing import Any, Callable, List, Optional
+from typing import Callable, Dict, Optional
 
 import zmq
 
@@ -25,25 +25,20 @@ class Comm(ABC):
 
 class ZmqComm(Comm):
     def __init__(
-        self,
-        broker_host: str,
-        broker_backend_port: int,
-        broker_frontend_port: int,
-        channel: str,
+        self, broker_host: str, broker_backend_port: int, broker_frontend_port: int
     ):
         self._broker_host = broker_host
         self._broker_backend_port = broker_backend_port
         self._broker_frontend_port = broker_frontend_port
-        self._channel = channel
 
         self._publisher = zmq.Context().socket(zmq.PUB)
 
         self._subscriber = zmq.Context().socket(zmq.SUB)
-        self._subscriber.setsockopt_string(zmq.SUBSCRIBE, channel)
+        self._subscriber.setsockopt_string(zmq.SUBSCRIBE, "")
 
         self._loop_task_thread: Optional[threading.Thread] = None
         self._loop_task_thread_should_run: bool = True
-        self._receive_callback_list: List[Callable[[str], None]] = []
+        self._receive_callbacks: Dict[str, Callable[[str], None]] = {}
 
     def connect(self) -> None:
         self._publisher.connect(
@@ -71,14 +66,16 @@ class ZmqComm(Comm):
     def send(self, channel: str, message: str) -> None:
         self._publisher.send_string(f"{channel}:{message}")
 
-    def register_receive_callback(self, callback: Callable[[str], None]) -> None:
-        self._receive_callback_list.append(callback)
+    def register_receive_callback(
+        self, channel: str, callback: Callable[[str], None]
+    ) -> None:
+        self._receive_callbacks[channel] = callback
 
     def _loop_task_func(self) -> None:
         while self._loop_task_thread_should_run:
             message = self._subscriber.recv_string()
             channel, message = message.split(":", 1)
-            assert channel == self._channel
 
-            for callback in self._receive_callback_list:
-                callback(message)
+            for callback_channel, callback in self._receive_callbacks.items():
+                if channel == callback_channel:
+                    callback(message)

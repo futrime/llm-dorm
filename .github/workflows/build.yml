@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-agent-python-docker:
+  build-server-python-docker:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,7 +16,7 @@ jobs:
         with:
           context: server
 
-  check-style-agent-python:
+  check-style-server-python:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

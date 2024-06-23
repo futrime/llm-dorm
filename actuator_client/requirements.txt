@@ -1,0 +1,6 @@
+abc
+json
+pyserial
+pyzmq==26.0.3
+threading
+typing
